@@ -38,16 +38,34 @@ async function run() {
 
         const db = client.db('plate_db');
         const productsCollection = db.collection('products');
+        const usersCollection = db.collection('users');
+
+        app.post('/users', async(req, res) => {
+            const newUser = req.body;
+            const result = await usersCollection.insertOne(newUser);
+            res.send(result);
+        })
 
         // GET ALL ->
-        app.get('/products', async(req, res) => {
-            const cursor = productsCollection.find();
+        app.get('/products', async (req, res) => {
+
+            console.log(req.query);
+            const email = req.query.email;
+            const query = {}
+            if (email) {
+                query.donator_email = email;
+
+            }
+
+            // const cursor = productsCollection.find(query).sort({quantity: -1}).limit(6);
+
+            const cursor = productsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
         })
 
         // GET ONE -> 
-        app.get('/products/:id', async(req, res) => {
+        app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await productsCollection.findOne(query);
@@ -55,14 +73,14 @@ async function run() {
         })
 
         // POST ->
-        app.post('/products', async(req, res) => {
+        app.post('/products', async (req, res) => {
             const newProduct = req.body;
             const result = await productsCollection.insertOne(newProduct);
             res.send(result);
         })
 
         // UPDATE ->
-        app.patch('/products/:id', async(req, res) => {
+        app.patch('/products/:id', async (req, res) => {
             const id = req.params.id;
             const updatedProduct = req.body;
             const query = { _id: new ObjectId(id) }
@@ -77,17 +95,17 @@ async function run() {
         })
 
         // DELETE -> 
-        app.delete('/products/:id', async(req, res) => {
+        app.delete('/products/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id)}
-            const result =  await productsCollection.deleteOne(query);
+            const query = { _id: new ObjectId(id) }
+            const result = await productsCollection.deleteOne(query);
             res.send(result);
         })
 
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     }
-    finally{
+    finally {
 
     }
 }
