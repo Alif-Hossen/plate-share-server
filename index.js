@@ -37,9 +37,9 @@ async function run() {
         const db = client.db('plate_db');
         const productsCollection = db.collection('products');
         const usersCollection = db.collection('users');
-        const foodsCollection = db.collection('foods'); 
+        const foodsCollection = db.collection('foods');
+        const requestsCollection = db.collection("requests");
 
-        // ADD FOOD (CREATE)
         app.post('/api/v1/foods', async (req, res) => {
             try {
                 const newFood = req.body;
@@ -62,6 +62,72 @@ async function run() {
                 res.status(500).send({ message: 'Server error while adding food.' });
             }
         });
+
+        // LAST START-->
+
+        app.post('/api/v1/requests', async (req, res) => {
+            const request = req.body;
+            try {
+                const result = await requestsCollection.insertOne(request);
+                res.send({ success: true, insertedId: result.insertedId });
+            } catch (error) {
+                console.error("Error saving request:", error);
+                res.status(500).send({ success: false, message: 'Failed to save request' });
+            }
+        });
+
+       
+        app.get('/api/v1/requests/:foodId', async (req, res) => {
+            const foodId = req.params.foodId;
+            try {
+                const query = { foodId: foodId };
+                const requests = await requestsCollection.find(query).toArray();
+                res.send(requests);
+            } catch (error) {
+                console.error("Error fetching requests:", error);
+                res.status(500).send({ message: 'Failed to fetch requests' });
+            }
+        });
+
+        
+        app.patch('/api/v1/requests/:id', async (req, res) => {
+            const id = req.params.id;
+            const { status, foodId } = req.body;
+
+            const requestObjectId = new ObjectId(id);
+            const foodObjectId = new ObjectId(foodId);
+
+            try {
+                const updateRequestResult = await requestsCollection.updateOne(
+                    { _id: requestObjectId },
+                    { $set: { status: status } }
+                );
+
+                if (updateRequestResult.modifiedCount === 0) {
+                    return res.status(404).send({ success: false, message: 'Request not found or status unchanged.' });
+                }
+
+                if (status === 'Accepted') {
+                    const updateFoodResult = await foodsCollection.updateOne(
+                        { _id: foodObjectId },
+                        { $set: { food_status: 'Donated' } }
+                    );
+
+                    if (updateFoodResult.modifiedCount === 0) {
+                       
+                        console.warn(`Food status update failed for foodId: ${foodId}`);
+                    }
+                }
+
+                res.send({ success: true, message: 'Status updated successfully' });
+
+            } catch (error) {
+                console.error("Error updating request/food status:", error);
+                res.status(500).send({ success: false, message: 'Server error during status update' });
+            }
+        });
+
+        // LAST END-->
 
         app.get('/api/v1/my-foods', async (req, res) => {
             const email = req.query.email;
