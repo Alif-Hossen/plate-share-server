@@ -1,23 +1,21 @@
 
 
+
+
 const express = require('express');
 const cors = require('cors');
 
-// MONGO DB -> 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// MIDDLEWARE ->
 app.use(cors());
 app.use(express.json())
 
-// MONGO URI ->
 const uri = "mongodb+srv://plateShare-user:10sLPXzCY1eC83kf@cluster0.zrfyfih.mongodb.net/?appName=Cluster0";
 
-// MONGO CLIENT ->
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -39,9 +37,7 @@ async function run() {
         const db = client.db('plate_db');
         const productsCollection = db.collection('products');
         const usersCollection = db.collection('users');
-
-        // NEEEEEEEW
-        const foodsCollection = db.collection('foods');
+        const foodsCollection = db.collection('foods'); 
 
         // ADD FOOD (CREATE)
         app.post('/api/v1/foods', async (req, res) => {
@@ -67,16 +63,96 @@ async function run() {
             }
         });
 
+        app.get('/api/v1/my-foods', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                return res.status(400).send({ message: "Email is required" });
+            }
+
+            const cursor = foodsCollection.find({ "donator.email": email });
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        app.get('/api/v1/foods/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const food = await foodsCollection.findOne(query);
+
+                if (!food) {
+                    return res.status(404).send({ message: "Food not found" });
+                }
+                res.send(food);
+            } catch (error) {
+                console.error('Error fetching single food:', error);
+                res.status(500).send({ message: 'Invalid ID or server error.' });
+            }
+        });
+
+        app.patch('/api/v1/foods/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const updateData = req.body;
+
+                const query = { _id: new ObjectId(id) };
+                const update = {
+                    $set: {
+                        food_name: updateData.food_name,
+                        food_image: updateData.food_image,
+                        quantity: updateData.quantity,
+                        pickup_location: updateData.pickup_location,
+                        expire_date: updateData.expire_date,
+                        notes: updateData.notes,
+                        food_status: updateData.food_status || 'Available',
+                    },
+                };
+                const result = await foodsCollection.updateOne(query, update);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ message: "Food not found" });
+                }
+
+                res.send({
+                    success: true,
+                    message: 'Food updated successfully',
+                    ...result
+                });
+            } catch (error) {
+                console.error('Error updating food:', error);
+                res.status(500).send({ message: 'Invalid ID or server error.' });
+            }
+        });
+
+        app.delete('/api/v1/foods/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await foodsCollection.deleteOne(query);
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: "Food not found" });
+                }
+
+                res.send({
+                    success: true,
+                    message: 'Food deleted successfully',
+                    ...result
+                });
+            } catch (error) {
+                console.error('Error deleting food:', error);
+                res.status(500).send({ message: 'Invalid ID or server error.' });
+            }
+        });
 
 
-        // USERS -->
         app.post('/users', async (req, res) => {
             const newUser = req.body;
             const result = await usersCollection.insertOne(newUser);
             res.send(result);
         })
 
-        // GET ALL -->
+        // GET ALL PRODUCTS -->
         app.get('/products', async (req, res) => {
 
             console.log(req.query);
@@ -86,22 +162,19 @@ async function run() {
                 query.donator_email = email;
 
             }
-
-            // const cursor = productsCollection.find(query).sort({quantity: -1}).limit(6);
-
             const cursor = productsCollection.find(query);
             const result = await cursor.toArray();
             res.send(result);
         })
 
-        // 
+        // GET TOP PRODUCTS -->
         app.get('/top_products', async (req, res) => {
             const cursor = productsCollection.find().sort({ quantity: -1 }).limit(6);
             const result = await cursor.toArray();
             res.send(result);
         })
 
-        // GET ONE -> 
+        // GET ONE PRODUCT -> 
         app.get('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
@@ -109,22 +182,20 @@ async function run() {
             res.send(result);
         })
 
-        // POST ->
+        // POST PRODUCT ->
         app.post('/products', async (req, res) => {
             const newProduct = req.body;
             const result = await productsCollection.insertOne(newProduct);
             res.send(result);
         })
 
-        // UPDATE ->
+        // UPDATE PRODUCT ->
         app.patch('/products/:id', async (req, res) => {
             const id = req.params.id;
             const updatedProduct = req.body;
             const query = { _id: new ObjectId(id) }
             const update = {
                 $set: {
-                    // name: updatedProduct.name,
-                    // price: updatedProduct.price
                     food_image: updatedProduct.food_image,
 
                 }
@@ -134,7 +205,7 @@ async function run() {
         })
 
 
-        // DELETE -> 
+        // DELETE PRODUCT -> 
         app.delete('/products/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
@@ -156,13 +227,6 @@ app.listen(port, () => {
     console.log(`Plate Share Is Running Port, ${port}`);
 
 })
-
-
-
-
-
-
-
 
 
 
