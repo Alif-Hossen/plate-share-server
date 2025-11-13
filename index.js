@@ -48,12 +48,10 @@ async function run() {
             try {
                 const newFood = req.body;
 
-                // Basic validation
                 if (!newFood.food_name || !newFood.food_image || !newFood.quantity || !newFood.pickup_location) {
                     return res.status(400).send({ message: 'Missing required fields.' });
                 }
 
-                // Default values
                 newFood.food_status = newFood.food_status || 'Available';
                 newFood.created_at = new Date().toISOString();
 
